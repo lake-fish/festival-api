@@ -8,6 +8,7 @@
 
 - 🎊 支持农历和公历节日查询
 - 🌿 支持24节气日期查询（如"芒种是几月几号"、"去年大寒是什么时候"）
+- 📅 支持计算型节日查询（母亲节、父亲节、感恩节等，日期每年不同）
 - 📅 自动进行阴阳历日期转换
 - 🏖️ 集成法定节假日信息查询
 - 🔍 智能解析自然语言问题（如"今年七夕是什么时候"）
@@ -88,6 +89,27 @@ curl -X POST "http://localhost:8000/api/v1/query" \
   -d '{
     "question": "去年大寒是什么时候"
   }'
+
+# 查询今年母亲节
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "今年母亲节是什么时候"
+  }'
+
+# 查询今年父亲节
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "今年父亲节是几月几号"
+  }'
+
+# 查询今年感恩节
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "今年感恩节是什么时候"
+  }'
 ```
 
 #### Python
@@ -138,6 +160,33 @@ response = requests.post(
     "http://localhost:8000/api/v1/query",
     json={
         "question": "去年大寒是什么时候"
+    }
+)
+print(response.json())
+
+# 查询今年母亲节
+response = requests.post(
+    "http://localhost:8000/api/v1/query",
+    json={
+        "question": "今年母亲节是什么时候"
+    }
+)
+print(response.json())
+
+# 查询今年父亲节
+response = requests.post(
+    "http://localhost:8000/api/v1/query",
+    json={
+        "question": "今年父亲节是几月几号"
+    }
+)
+print(response.json())
+
+# 查询今年感恩节
+response = requests.post(
+    "http://localhost:8000/api/v1/query",
+    json={
+        "question": "今年感恩节是什么时候"
     }
 )
 print(response.json())
@@ -325,6 +374,14 @@ curl "http://localhost:8000/health"
 - **平安夜** (12月24日)
 - **圣诞节** (12月25日)
 
+### 计算型节日（日期每年不同）
+
+- **母亲节** (5月第二个星期日)
+- **父亲节** (6月第三个星期日)
+- **感恩节** (11月第四个星期四，美国感恩节)
+
+> 注意：这些节日的日期每年会变化，系统会自动计算准确的日期。
+
 ### 24节气
 
 - **春季**：立春、雨水、惊蛰、春分、清明、谷雨
@@ -400,6 +457,30 @@ curl -X POST "http://localhost:8000/api/v1/query" \
 curl -X POST "http://localhost:8000/api/v1/query" \
   -H "Content-Type: application/json" \
   -d '{"question": "今年清明是几月几号", "check_holiday": true}'
+```
+
+### 示例 8：查询今年母亲节
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "今年母亲节是什么时候"}'
+```
+
+### 示例 9：查询今年父亲节
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "今年父亲节是几月几号"}'
+```
+
+### 示例 10：查询今年感恩节
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "今年感恩节是什么时候"}'
 ```
 
 ## 🔧 技术栈

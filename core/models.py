@@ -47,7 +47,7 @@ class QueryResponse(BaseModel):
     success: bool = Field(..., description="是否成功")
     festival: str = Field(..., description="节日或节气名称")
     query_year: int = Field(..., description="查询年份")
-    festival_type: Literal["lunar_fixed", "solar_fixed", "solar_term"] = Field(..., description="节日类型：lunar_fixed=农历节日, solar_fixed=公历节日, solar_term=24节气")
+    festival_type: Literal["lunar_fixed", "solar_fixed", "solar_term", "calculated"] = Field(..., description="节日类型：lunar_fixed=农历节日, solar_fixed=公历节日, solar_term=24节气, calculated=计算型节日（如母亲节、父亲节、感恩节）")
 
     solar: SolarDate
     lunar: LunarDate

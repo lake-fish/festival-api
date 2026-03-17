@@ -40,6 +40,14 @@ class FestivalQuery:
         '立冬', '小雪', '大雪', '冬至', '小寒', '大寒'
     ]
 
+    # 计算型节日：{节日名: (月份, 第几个, 星期几)}
+    # 星期几：0=周日, 1=周一, ..., 6=周六
+    CALCULATED_FESTIVALS = {
+        '母亲节': (5, 2, 0),      # 5月第二个星期日
+        '父亲节': (6, 3, 0),      # 6月第三个星期日
+        '感恩节': (11, 4, 4),     # 11月第四个星期四（美国感恩节）
+    }
+
     # 节日别名映射
     ALIASES = {
         '中秋节': '中秋', '端午节': '端午', '重阳节': '重阳',
@@ -87,6 +95,11 @@ class FestivalQuery:
             if alias in query:
                 return self.ALIASES[alias]
         
+        # 再检查计算型节日（按长度降序，避免短名误匹配）
+        for name in sorted(self.CALCULATED_FESTIVALS.keys(), key=len, reverse=True):
+            if name in query:
+                return name
+        
         # 再检查标准节日名（按长度降序，避免短名误匹配）
         candidates = list(self.LUNAR_FESTIVALS.keys()) + list(self.SOLAR_FESTIVALS.keys())
         for name in sorted(candidates, key=len, reverse=True):
@@ -125,6 +138,38 @@ class FestivalQuery:
     def _convert_solar_to_lunar(self, year: int, month: int, day: int) -> tuple[Solar, Lunar]:
         """公历转农历（带缓存）"""
         solar = Solar.fromYmd(year, month, day)
+        return solar, solar.getLunar()
+
+    @cached(key_prefix="calculated_festival", ttl=settings.CACHE_TTL)
+    def _calculate_festival_date(self, year: int, month: int, nth: int, weekday: int) -> tuple[Solar, Lunar]:
+        """
+        计算指定年份某月第N个星期X的日期
+        
+        Args:
+            year: 年份
+            month: 月份 (1-12)
+            nth: 第几个 (1=第一个, 2=第二个, ...)
+            weekday: 星期几 (0=周日, 1=周一, ..., 6=周六)
+        
+        Returns:
+            (Solar, Lunar) 元组
+        """
+        # 找到该月第一个星期X
+        first_day = Solar.fromYmd(year, month, 1)
+        first_weekday = first_day.getWeek()  # 0=周日, 1=周一, ..., 6=周六
+        
+        # 计算第一个目标星期X是几号
+        # 如果目标星期X >= 第一个星期X，直接计算差值
+        # 如果目标星期X < 第一个星期X，需要加7天
+        if weekday >= first_weekday:
+            days_to_add = weekday - first_weekday
+        else:
+            days_to_add = 7 - first_weekday + weekday
+        
+        # 计算第N个目标星期X的日期
+        target_day = 1 + days_to_add + (nth - 1) * 7
+        
+        solar = Solar.fromYmd(year, month, target_day)
         return solar, solar.getLunar()
 
     @cached(key_prefix="solar_term", ttl=settings.CACHE_TTL)
@@ -235,7 +280,8 @@ class FestivalQuery:
         # 3. 解析节日
         festival = self._parse_festival(question)
         if not festival:
-            raise ValueError(f"未识别到节日或节气，支持: {', '.join(list(self.LUNAR_FESTIVALS.keys())[:5])}... 或24节气")
+            supported = list(self.LUNAR_FESTIVALS.keys())[:3] + list(self.CALCULATED_FESTIVALS.keys())
+            raise ValueError(f"未识别到节日或节气，支持: {', '.join(supported)}... 或24节气")
 
         # 4. 日期转换
         if festival in self.LUNAR_FESTIVALS:
@@ -243,6 +289,11 @@ class FestivalQuery:
             lm, ld = self.LUNAR_FESTIVALS[festival]
             solar, lunar = self._convert_lunar_to_solar(year, lm, ld)
             festival_type = "lunar_fixed"
+        elif festival in self.CALCULATED_FESTIVALS:
+            # 计算型节日（如母亲节、父亲节、感恩节）
+            month, nth, weekday = self.CALCULATED_FESTIVALS[festival]
+            solar, lunar = self._calculate_festival_date(year, month, nth, weekday)
+            festival_type = "calculated"
         else:
             # 公历节日 → 转农历
             sm, sd = self.SOLAR_FESTIVALS[festival]
