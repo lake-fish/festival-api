@@ -7,6 +7,7 @@
 ## ✨ 功能特性
 
 - 🎊 支持农历和公历节日查询
+- 🌿 支持24节气日期查询（如"芒种是几月几号"、"去年大寒是什么时候"）
 - 📅 自动进行阴阳历日期转换
 - 🏖️ 集成法定节假日信息查询
 - 🔍 智能解析自然语言问题（如"今年七夕是什么时候"）
@@ -73,6 +74,20 @@ curl -X POST "http://localhost:8000/api/v1/query" \
     "question": "今年万圣节是什么时候",
     "check_holiday": false
   }'
+
+# 查询今年芒种节气
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "今年芒种是几月几号"
+  }'
+
+# 查询去年大寒节气
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "去年大寒是什么时候"
+  }'
 ```
 
 #### Python
@@ -105,6 +120,24 @@ response = requests.post(
     "http://localhost:8000/api/v1/query",
     json={
         "question": "明年春节是什么时候"
+    }
+)
+print(response.json())
+
+# 查询今年芒种节气
+response = requests.post(
+    "http://localhost:8000/api/v1/query",
+    json={
+        "question": "今年芒种是几月几号"
+    }
+)
+print(response.json())
+
+# 查询去年大寒节气
+response = requests.post(
+    "http://localhost:8000/api/v1/query",
+    json={
+        "question": "去年大寒是什么时候"
     }
 )
 print(response.json())
@@ -223,6 +256,12 @@ curl "http://localhost:8000/api/v1/festivals"
     "青年节", "儿童节", "建党节", "建军节", "教师节", "国庆节",
     "万圣节", "光棍节", "平安夜", "圣诞节"
   ],
+  "solar_terms": [
+    "立春", "雨水", "惊蛰", "春分", "清明", "谷雨",
+    "立夏", "小满", "芒种", "夏至", "小暑", "大暑",
+    "立秋", "处暑", "白露", "秋分", "寒露", "霜降",
+    "立冬", "小雪", "大雪", "冬至", "小寒", "大寒"
+  ],
   "legal_holidays": [
     "春节", "清明", "劳动节", "端午", "中秋", "国庆", "元旦"
   ]
@@ -286,6 +325,15 @@ curl "http://localhost:8000/health"
 - **平安夜** (12月24日)
 - **圣诞节** (12月25日)
 
+### 24节气
+
+- **春季**：立春、雨水、惊蛰、春分、清明、谷雨
+- **夏季**：立夏、小满、芒种、夏至、小暑、大暑
+- **秋季**：立秋、处暑、白露、秋分、寒露、霜降
+- **冬季**：立冬、小雪、大雪、冬至、小寒、大寒
+
+> 注意：节气日期每年略有不同，系统会自动计算准确的公历和农历日期。
+
 ### 支持的别名
 
 - 中秋节 → 中秋
@@ -328,6 +376,30 @@ curl -X POST "http://localhost:8000/api/v1/query" \
 curl -X POST "http://localhost:8000/api/v1/query" \
   -H "Content-Type: application/json" \
   -d '{"question": "今年万圣节是什么时候", "check_holiday": false}'
+```
+
+### 示例 5：查询今年芒种节气
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "今年芒种是几月几号"}'
+```
+
+### 示例 6：查询去年大寒节气
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "去年大寒是什么时候"}'
+```
+
+### 示例 7：查询今年清明节气（法定节假日）
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/query" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "今年清明是几月几号", "check_holiday": true}'
 ```
 
 ## 🔧 技术栈

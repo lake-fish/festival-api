@@ -45,9 +45,9 @@ class HolidayInfo(BaseModel):
 class QueryResponse(BaseModel):
     """查询响应"""
     success: bool = Field(..., description="是否成功")
-    festival: str = Field(..., description="节日名称")
+    festival: str = Field(..., description="节日或节气名称")
     query_year: int = Field(..., description="查询年份")
-    festival_type: Literal["lunar_fixed", "solar_fixed"] = Field(..., description="节日类型")
+    festival_type: Literal["lunar_fixed", "solar_fixed", "solar_term"] = Field(..., description="节日类型：lunar_fixed=农历节日, solar_fixed=公历节日, solar_term=24节气")
 
     solar: SolarDate
     lunar: LunarDate

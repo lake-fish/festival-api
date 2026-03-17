@@ -32,6 +32,14 @@ class FestivalQuery:
     # 法定节假日（用于查提莫API）
     LEGAL_HOLIDAYS = {'春节', '清明', '劳动节', '端午', '中秋', '国庆', '元旦'}
 
+    # 24节气列表（按时间顺序）
+    SOLAR_TERMS = [
+        '立春', '雨水', '惊蛰', '春分', '清明', '谷雨',
+        '立夏', '小满', '芒种', '夏至', '小暑', '大暑',
+        '立秋', '处暑', '白露', '秋分', '寒露', '霜降',
+        '立冬', '小雪', '大雪', '冬至', '小寒', '大寒'
+    ]
+
     # 节日别名映射
     ALIASES = {
         '中秋节': '中秋', '端午节': '端午', '重阳节': '重阳',
@@ -86,6 +94,14 @@ class FestivalQuery:
                 return self._normalize_festival(name)
         return None
 
+    def _parse_solar_term(self, query: str) -> Optional[str]:
+        """解析节气名称"""
+        # 按长度降序匹配，避免短名误匹配（如"小寒"和"大寒"）
+        for term in sorted(self.SOLAR_TERMS, key=len, reverse=True):
+            if term in query:
+                return term
+        return None
+
     @cached(key_prefix="date_convert", ttl=settings.CACHE_TTL)
     def _convert_lunar_to_solar(self, year: int, month: int, day: int) -> tuple[Solar, Lunar]:
         """农历转公历（带缓存）"""
@@ -110,6 +126,37 @@ class FestivalQuery:
         """公历转农历（带缓存）"""
         solar = Solar.fromYmd(year, month, day)
         return solar, solar.getLunar()
+
+    @cached(key_prefix="solar_term", ttl=settings.CACHE_TTL)
+    def _get_solar_term_date(self, year: int, term_name: str) -> Optional[tuple[Solar, Lunar]]:
+        """获取指定年份的节气日期"""
+        try:
+            # 节气表包含该年及前后一年的节气，需要检查多个年份
+            # 先检查当前年
+            lunar = Lunar.fromYmd(year, 1, 1)
+            jie_qi_table = lunar.getJieQiTable()
+            solar = jie_qi_table.get(term_name)
+            
+            if solar and solar.getYear() == year:
+                return solar, solar.getLunar()
+            
+            # 如果不在当前年，检查上一年（某些节气可能在上一年的1月，如大寒）
+            lunar_prev = Lunar.fromYmd(year - 1, 1, 1)
+            jie_qi_table_prev = lunar_prev.getJieQiTable()
+            solar = jie_qi_table_prev.get(term_name)
+            if solar and solar.getYear() == year:
+                return solar, solar.getLunar()
+            
+            # 检查下一年（某些节气可能在下一年，但这种情况较少）
+            lunar_next = Lunar.fromYmd(year + 1, 1, 1)
+            jie_qi_table_next = lunar_next.getJieQiTable()
+            solar = jie_qi_table_next.get(term_name)
+            if solar and solar.getYear() == year:
+                return solar, solar.getLunar()
+            
+            return None
+        except Exception as e:
+            return None
 
     @cached(key_prefix="holiday_info", ttl=settings.CACHE_TTL)
     def _fetch_holiday_info(self, date_str: str) -> Optional[HolidayInfo]:
@@ -162,12 +209,35 @@ class FestivalQuery:
         """主查询方法"""
         # 1. 解析输入
         year = self._parse_year(question)
+        
+        # 2. 先尝试解析节气
+        solar_term = self._parse_solar_term(question)
+        if solar_term:
+            term_result = self._get_solar_term_date(year, solar_term)
+            if term_result:
+                solar, lunar = term_result
+                result = {
+                    'success': True,
+                    'festival': solar_term,
+                    'query_year': year,
+                    'festival_type': 'solar_term',
+                    'solar': self._build_solar_date(solar),
+                    'lunar': self._build_lunar_date(lunar),
+                }
+                # 清明是法定节假日
+                if check_holiday and solar_term == '清明':
+                    result['holiday'] = self._fetch_holiday_info(solar.toYmd())
+                result['text'] = self._format_text(result)
+                return result
+            else:
+                raise ValueError(f"未找到{year}年的{solar_term}节气日期")
+        
+        # 3. 解析节日
         festival = self._parse_festival(question)
-
         if not festival:
-            raise ValueError(f"未识别到节日，支持: {', '.join(list(self.LUNAR_FESTIVALS.keys())[:5])}...")
+            raise ValueError(f"未识别到节日或节气，支持: {', '.join(list(self.LUNAR_FESTIVALS.keys())[:5])}... 或24节气")
 
-        # 2. 日期转换
+        # 4. 日期转换
         if festival in self.LUNAR_FESTIVALS:
             # 农历节日 → 转公历
             lm, ld = self.LUNAR_FESTIVALS[festival]
@@ -179,7 +249,7 @@ class FestivalQuery:
             solar, lunar = self._convert_solar_to_lunar(year, sm, sd)
             festival_type = "solar_fixed"
 
-        # 3. 构建基础响应
+        # 5. 构建基础响应
         result = {
             'success': True,
             'festival': festival,
@@ -189,18 +259,23 @@ class FestivalQuery:
             'lunar': self._build_lunar_date(lunar),
         }
 
-        # 4. 查询节假日信息（可选）
+        # 6. 查询节假日信息（可选）
         if check_holiday and festival in self.LEGAL_HOLIDAYS:
             result['holiday'] = self._fetch_holiday_info(solar.toYmd())
 
-        # 5. 生成友好文本
+        # 7. 生成友好文本
         result['text'] = self._format_text(result)
 
         return result
 
     def _format_text(self, data: dict) -> str:
         """生成友好回复文本"""
-        lines = [f"🎊 {data['festival']}"]
+        festival_type = data.get('festival_type', '')
+        if festival_type == 'solar_term':
+            lines = [f"🌿 {data['festival']}"]
+        else:
+            lines = [f"🎊 {data['festival']}"]
+        
         lines.append(f"📅 公历：{data['solar'].date}（星期{data['solar'].week_cn}）")
         lines.append(f"🌙 农历：{data['lunar'].year_ganzhi}年 {data['lunar'].date_cn}")
 

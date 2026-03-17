@@ -53,13 +53,16 @@ async def health_check():
 )
 async def query_festival(req: QueryRequest):
     """
-    查询节日日期信息
+    查询节日或节气日期信息
 
-    - **question**: 用户问题，如"今年七夕是什么时候"
+    - **question**: 用户问题，如"今年七夕是什么时候"、"今年芒种是几月几号"、"去年大寒是什么时候"
     - **check_holiday**: 是否查询法定节假日安排（默认true）
     - **return_json**: 是否返回结构化数据（默认false，返回text字段）
 
     支持节日：春节/元宵/端午/七夕/中秋/重阳/腊八/元旦/万圣节/圣诞节等
+    
+    支持24节气：立春/雨水/惊蛰/春分/清明/谷雨/立夏/小满/芒种/夏至/小暑/大暑/
+    立秋/处暑/白露/秋分/寒露/霜降/立冬/小雪/大雪/冬至/小寒/大寒
     """
     try:
         engine: FestivalQuery = app.state.query_engine
@@ -105,11 +108,12 @@ async def batch_query(items: list[QueryRequest]):
 # 获取支持的节日列表
 @app.get("/api/v1/festivals", tags=["Meta"])
 async def list_festivals():
-    """获取支持的节日列表"""
+    """获取支持的节日和节气列表"""
     from core.query import FestivalQuery
     return {
         "lunar_fixed": list(FestivalQuery.LUNAR_FESTIVALS.keys()),
         "solar_fixed": list(FestivalQuery.SOLAR_FESTIVALS.keys()),
+        "solar_terms": list(FestivalQuery.SOLAR_TERMS),
         "legal_holidays": list(FestivalQuery.LEGAL_HOLIDAYS)
     }
 
